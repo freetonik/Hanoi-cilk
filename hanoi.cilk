@@ -1,0 +1,50 @@
+// hanoi.cilk
+
+#include <cilk.h>
+#include <cilkview.h>
+#include <iostream>
+#include <new>
+#include <string>
+#include <sstream>
+using namespace std;
+
+string cilk_hanoi (int n, int s, int d, int e)
+{
+        string res; //final string
+        string x, y, z; //for paralleled subcalls
+        if (n == 1)
+        {
+                stringstream bs(stringstream::in | stringstream::out);  //UGLY WAY
+                bs << s << "->" << d << endl;                           //TO CONVERT
+                res.append(bs.str());                                   //INT To STR
+                return res;
+        }
+        else
+        {
+                x = cilk_spawn cilk_hanoi (n-1, s, e, d);
+                y = cilk_spawn cilk_hanoi (1, s, d, e);
+                z = cilk_spawn cilk_hanoi (n-1, e, d, s);
+                cilk_sync;                                      //synchronize parallel calls
+                res.append(x + y + z);                          //string to return
+                return res;
+        }
+}
+
+
+int cilk_main(int argc, char** argv)
+{
+        int n = 3; //default
+        if (argc > 1) n = atoi(argv[1]);
+
+        cilk::cilkview cv;
+        cv.reset();
+        cv.start();
+        string moves = cilk_hanoi(n, 1, 3, 2);
+        cv.stop();
+
+        cout << moves;  //big resulting string
+
+        float par_time=cv.accumulated_milliseconds();
+        std::cout << "Hanoi took " << par_time << " milliseconds." << std::endl;
+        return 0;
+}
